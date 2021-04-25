@@ -1,0 +1,215 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+# 
+
+require 'logger'
+require 'nokogiri'
+require 'mechanize'
+require 'shellwords'
+require 'ostruct'
+
+class ZMKFinder
+  @@base_url = "http://zmk.pw"
+
+  def initialize(opts)
+    @logger = Logger.new(STDOUT, progname: "zimuku", datetime_format: "%Y-%m-%d %H:%M:%S")
+    @agent = Mechanize.new
+    @agent.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
+    @force = opts[:force]
+    @logger.info "==========================================="
+  end
+
+  def process(nfo)
+    read_nfo(nfo)
+    return unless _need_processing?
+    return unless find
+    download
+    extract
+    rename
+  end
+
+  def read_nfo(nfo)
+    doc = File.open(nfo) { |f| Nokogiri::XML(f) }
+    if doc.at_css("//movie")
+      @file = OpenStruct.new({
+        title: doc.at_css("movie > title").text,
+        imdb:  doc.at_css("uniqueid[type=imdb]").text,
+        filename: File.basename(nfo).delete_suffix(".nfo"),
+        dir: File.dirname(nfo),
+        type: "电影"
+      })
+    elsif doc.at_css("//episodedetails")
+      @file = OpenStruct.new({
+        title: doc.at_css("episodedetails > title").text,
+        filename: File.basename(nfo).delete_suffix(".nfo"),
+        dir: File.dirname(nfo),
+        season: doc.at_css("episodedetails > season").text.to_i,
+        episode: doc.at_css("episodedetails > episode").text.to_i,
+        type: "剧集"
+      })
+      show = _get_show_info(File.expand_path("../", @file.dir))
+      @file.imdb = show[:imdb]
+      episode_str = "S%02dE%02d" % [@file.season, @file.episode]
+      @file.title = "#{show[:title]}:#{episode_str}.#{@file.title}" 
+      @file
+    else
+      @file = nil
+    end
+  end
+
+  def find
+    @agent.get(_base_url)
+    search_path = "/search/?q=" + @file.imdb
+    media_path = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")["href"]
+    @logger.info "---- #{media_path}"
+    subs = @agent.get(media_path).css("#subtb > tbody > tr")
+    if @file.type == '电影'
+      sub = subs.sort_by {|s|
+        count = s.at_css(">td:nth-last-child(2)").text
+        count.include?("万") ? (count.to_f * 10000).to_i : count.to_i
+      }.last
+    else
+      sub = subs.select{ |s|
+        s.at_css(":has(a[title*='.S%02d.']),:has(a[title*='.S%02dE%02d.'])" % [@file.season, @file.season, @file.episode]) 
+      }.sort_by {|s|
+        count = s.at_css(">td:nth-last-child(2)").text
+        count.include?("万") ? (count.to_f * 10000).to_i : count.to_i
+      }.last
+    end
+    if sub 
+      @file.sub_name = sub.at_css("a[href^='/detail/']")["title"]
+      @file.path = sub.at_css("a[href^='/detail/']")["href"].sub("detail", "dld")
+      @file.downloads = sub.at_css(">td:nth-last-child(2)").text
+      @logger.info "找到 '#{@file.sub_name}'"
+      @logger.info "---- #{@file.path} 下载量 #{@file.downloads}"
+      return true
+    else
+      @logger.info "未找到字幕"
+      return false
+    end
+  end
+
+  def download
+    links = @agent.get(@file.path)
+    link = links.links.first.href
+    f = @agent.get(link)
+    fname = f.header['content-disposition'][/"(.*)"/,1]
+    @file.sub_name = fname
+    sub_file = File.join(@file.dir, fname)
+    f.save!(sub_file)
+  end
+
+  def extract
+    sub_file = File.join(@file.dir, @file.sub_name)
+    if sub_file.end_with?('.rar')
+      `unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)}`
+    elsif sub_file.end_with?('.zip')
+      `7z x -y -o#{_escape(@file.dir)} #{_escape(sub_file)}`
+    end
+  end
+
+  def rename
+    if @file.type == '电影'
+      Dir["#{_escape(@file.dir)}/*.{sub,idx,ass,srt}"].each do |f|
+        _rename_sub(f, @file.filename)
+      end
+    else
+      Dir["#{_escape(@file.dir)}/*.nfo"].each do |nfo|
+        e = nfo[/S\d{2}E\d{2}/]
+        next unless e
+        prefix = File.basename(nfo).delete_suffix(".nfo")
+        Dir["#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}"].each do |f|
+          _rename_sub(f, prefix)
+        end
+      end
+    end
+  end
+
+  private
+
+  def _rename_sub(f, prefix)
+    unless File.basename(f).start_with?(prefix)
+      old_name = File.basename(f)
+      new_name = prefix + "." + old_name
+      @logger.info "重命名 #{old_name}"
+      @logger.info "  -> #{new_name}"
+      File.rename(f, File.join(File.dirname(f), new_name))
+    end
+  end
+
+  def _escape(str)
+    Shellwords.escape(str)
+  end
+
+  def _need_processing?
+    return false unless @file and @file.imdb
+    @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
+    return true  if @force
+    existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}.*.{srt,sub,ass}"]
+    if existing.empty?
+      return true  
+    else
+      existing.each do |f|
+        @logger.info "已有 #{File.basename(f)}"
+      end
+      return false
+    end
+  end
+
+  def _get_show_info(dir)
+    Dir["#{_escape(dir)}/*.nfo"].each do |nfo|
+      doc = File.open(nfo) { |f| Nokogiri::XML(f) }
+      if doc.at_css("//tvshow")
+        return { title: doc.at_css("tvshow > title").text, imdb: doc.at_css("uniqueid[type=imdb]").text }
+      end
+    end
+    return {}
+  end
+
+  def _base_url
+    @@base_url
+  end
+
+end
+
+def run_finder(finder, dir)
+  Dir["#{dir}/**/*.nfo"].each do |nfo|
+    finder.process(nfo)
+  end
+end
+
+if __FILE__ == $0
+  require 'optparse'
+  opts = {}
+  OptionParser.new do |o|
+    o.banner = <<~USAGE
+    Usage: #{$0} [OPTIONS] [PATH]
+
+           PATH defaults to $PWD
+
+    USAGE
+
+    o.on("-f", "--force", "Force download subs even if there exists some") do |v|
+      opts[:force] = v
+    end
+    o.on("-d", "--daemon", "Run as daemon") do |v|
+      opts[:daemon] = v
+    end
+  end.parse!
+
+  dir = ARGV.first || "."
+
+  finder = ZMKFinder.new(opts)
+
+  if opts[:daemon]
+    run = true
+    trap 'TERM', lambda { run = false }
+
+    while run
+      run_finder(finder, dir)
+      sleep 7200
+    end
+  else
+    run_finder(finder, dir)
+  end
+end
