@@ -16,7 +16,6 @@ class ZMKFinder
     @agent = Mechanize.new
     @agent.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
     @force = opts[:force]
-    @logger.info "==========================================="
   end
 
   def process(nfo)
@@ -173,9 +172,15 @@ class ZMKFinder
 end
 
 def run_finder(finder, dir)
+  log = Logger.new(STDOUT, datetime_format: "%Y-%m-%d %H:%M:%S")
+  log.info "====================SUBFINDER START======================"
+  t = Time.now()
+
   Dir["#{dir}/**/*.nfo"].each do |nfo|
     finder.process(nfo)
   end
+  delta = (Time.now() - t).round(2)
+  log.info "============TOTAL RUN TIME #{delta} SECONDS============="
 end
 
 if __FILE__ == $0
