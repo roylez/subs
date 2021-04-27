@@ -69,7 +69,7 @@ class ZMKFinder
       }.last
     else
       sub = subs.select{ |s|
-        s.at_css(":has(a[title*='.S%02d.']),:has(a[title*='.S%02dE%02d.'])" % [@file.season, @file.season, @file.episode]) 
+        s.at_css(":has(a[title*='S%02d']),:has(a[title*='S%02dE%02d'])" % [@file.season, @file.season, @file.episode]) 
       }.sort_by {|s|
         count = s.at_css(">td:nth-last-child(2)").text
         count.include?("万") ? (count.to_f * 10000).to_i : count.to_i
