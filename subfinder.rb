@@ -105,7 +105,7 @@ class ZMKFinder
     if sub_file.end_with?('.rar')
       `unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)}`
     elsif sub_file.end_with?('.zip')
-      `7z x -y -o#{_escape(@file.dir)} #{_escape(sub_file)}`
+      `7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)}`
     end
   end
 
