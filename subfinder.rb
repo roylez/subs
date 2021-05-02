@@ -8,11 +8,13 @@ require 'mechanize'
 require 'shellwords'
 require 'ostruct'
 
+$stdout.sync = true
+
 class ZMKFinder
   @@base_url = "http://zmk.pw"
 
   def initialize(opts)
-    @logger = Logger.new(STDOUT, progname: "zimuku", datetime_format: "%Y-%m-%d %H:%M:%S")
+    @logger = Logger.new($stdout, progname: "zimuku", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
     @agent.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
     @force = opts[:force]
@@ -173,14 +175,14 @@ end
 
 def run_finder(finder, dir)
   log = Logger.new(STDOUT, datetime_format: "%Y-%m-%d %H:%M:%S")
-  log.info "====================SUBFINDER START======================"
+  log.info "....................启动 SUBFINDER"
   t = Time.now()
 
   Dir["#{dir}/**/*.nfo"].each do |nfo|
     finder.process(nfo)
   end
   delta = (Time.now() - t).round(2)
-  log.info "============TOTAL RUN TIME #{delta} SECONDS============="
+  log.info "....................一共运行 #{delta} 秒"
 end
 
 if __FILE__ == $0
