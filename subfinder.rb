@@ -65,17 +65,14 @@ class ZMKFinder
     @logger.info "---- #{media_path}"
     subs = @agent.get(media_path).css("#subtb > tbody > tr")
     if @file.type == '电影'
-      sub = subs.sort_by {|s|
-        count = s.at_css(">td:nth-last-child(2)").text
-        count.include?("万") ? (count.to_f * 10000).to_i : count.to_i
-      }.last
+      sub = subs.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
     else
       sub = subs.select{ |s|
-        s.at_css(":has(a[title*='S%02d']),:has(a[title*='S%02dE%02d'])" % [@file.season, @file.season, @file.episode]) 
-      }.sort_by {|s|
-        count = s.at_css(">td:nth-last-child(2)").text
-        count.include?("万") ? (count.to_f * 10000).to_i : count.to_i
-      }.last
+        s.at_css(":has(a[title*='s%02de%02d']), :has(a[title*='S%02dE%02d'])" % [@file.season, @file.episode, @file.season, @file.episode]) 
+      }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
+      sub ||= subs.select{ |s|
+        s.at_css(":has(a[title*='S%02d.']), :has(a[title*='s%02d.'])" % [@file.season, @file.season]) 
+      }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
     end
     if sub 
       @file.sub_name = sub.at_css("a[href^='/detail/']")["title"]
@@ -140,6 +137,10 @@ class ZMKFinder
 
   def _escape(str)
     Shellwords.escape(str)
+  end
+
+  def _download_count(c)
+    c.include?("万") ? (c.to_f * 10000).to_i : c.to_i
   end
 
   def _need_processing?
