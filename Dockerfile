@@ -1,22 +1,11 @@
-FROM ruby:alpine as builder
+FROM alpine:3.13
 
-RUN apk add --no-cache build-base libxml2-dev libxslt-dev
-RUN gem install nokogiri --platform=ruby -- --use-system-libraries
-
-WORKDIR /app
-
-COPY Gemfile Gemfile.lock ./
-RUN bundle update --bundler && bundle install --jobs=3 && rm /usr/local/bundle/cache/*
-
-# ----
-FROM ruby:alpine
-
-RUN apk add --no-cache libxml2 libxslt unrar p7zip
+RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext
 
 WORKDIR /app
 
-COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
-COPY --from=builder /app/ ./
+COPY Gemfile ./
+RUN bundle install --jobs=3
 COPY subfinder.rb .
 
 VOLUME /data
