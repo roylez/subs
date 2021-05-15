@@ -113,10 +113,10 @@ class ZMKFinder
       end
     else
       Dir["#{_escape(@file.dir)}/*.nfo"].each do |nfo|
-        e = nfo[/S\d{2}E\d{2}/]
+        e = nfo[/S\d{2}E\d{2}/i]
         next unless e
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        Dir["#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}"].each do |f|
+        Dir["#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD].each do |f|
           _rename_sub(f, prefix)
         end
       end
@@ -179,7 +179,7 @@ def run_finder(finder, dir)
   log.info "....................启动 SUBFINDER"
   t = Time.now()
 
-  Dir["#{dir}/**/*.nfo"].each do |nfo|
+  Dir["#{dir}/**/*.nfo"].sort.each do |nfo|
     finder.process(nfo)
   end
   delta = (Time.now() - t).round(2)
