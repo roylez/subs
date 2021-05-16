@@ -31,7 +31,7 @@ class ZMKFinder
 
   def read_nfo(nfo)
     doc = File.open(nfo) { |f| Nokogiri::XML(f) }
-    if doc.at_css("//movie")
+    if doc.at_css("movie:root")
       @file = OpenStruct.new({
         title: doc.at_css("movie > title").text,
         imdb:  doc.at_css("uniqueid[type=imdb]").text,
@@ -39,7 +39,7 @@ class ZMKFinder
         dir: File.dirname(nfo),
         type: "电影"
       })
-    elsif doc.at_css("//episodedetails")
+    elsif doc.at_css("episodedetails:root")
       @file = OpenStruct.new({
         title: doc.at_css("episodedetails > title").text,
         filename: File.basename(nfo).delete_suffix(".nfo"),
@@ -49,7 +49,9 @@ class ZMKFinder
         type: "剧集"
       })
       show = _get_show_info(File.expand_path("../", @file.dir))
+      season = _get_season_info(File.expand_path(@file.dir))
       @file.imdb = show[:imdb]
+      @file.year = season[:year]
       episode_str = "S%02dE%02d" % [@file.season, @file.episode]
       @file.title = "#{show[:title]}:#{episode_str}.#{@file.title}" 
       @file.show_title = show[:title]
@@ -70,9 +72,14 @@ class ZMKFinder
         .sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }
         .last
     else
-      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title)
-      media_path = @agent.get(search_path).
-        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])["href"]
+      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
+      media_item = @agent.get(search_path).
+        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
+      unless media_item
+        @logger.info "未找到字幕"
+        return false 
+      end
+      media_path = media_item['href']
       @logger.info "---- #{media_path}"
       subs = @agent.get(media_path).css("#subtb > tbody > tr")
       sub = subs.select{ |s|
@@ -169,12 +176,22 @@ class ZMKFinder
   def _get_show_info(dir)
     Dir["#{_escape(dir)}/*.nfo"].each do |nfo|
       doc = File.open(nfo) { |f| Nokogiri::XML(f) }
-      if doc.at_css("//tvshow")
-        return { title: doc.at_css("tvshow > title").text, imdb: doc.at_css("uniqueid[type=imdb]").text }
+      if doc.at_css("tvshow:root")
+        return { title: doc.at_css("tvshow:root > title").text, imdb: doc.at_css("uniqueid[type=imdb]").text }
       end
     end
     return {}
   end
+  def _get_season_info(dir)
+    Dir["#{_escape(dir)}/*.nfo"].each do |nfo|
+      doc = File.open(nfo) { |f| Nokogiri::XML(f) }
+      if doc.at_css("season:root")
+        return { year: doc.at_css("season:root > year").text }
+      end
+    end
+    return {}
+  end
+
 
   def _base_url
     @@base_url
