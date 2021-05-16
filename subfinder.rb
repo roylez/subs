@@ -52,6 +52,7 @@ class ZMKFinder
       @file.imdb = show[:imdb]
       episode_str = "S%02dE%02d" % [@file.season, @file.episode]
       @file.title = "#{show[:title]}:#{episode_str}.#{@file.title}" 
+      @file.show_title = show[:title]
       @file
     else
       @file = nil
@@ -60,13 +61,20 @@ class ZMKFinder
 
   def find
     @agent.get(_base_url)
-    search_path = "/search/?q=" + @file.imdb
-    media_path = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")["href"]
-    @logger.info "---- #{media_path}"
-    subs = @agent.get(media_path).css("#subtb > tbody > tr")
     if @file.type == '电影'
-      sub = subs.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
+      search_path = "/search/?q=" + @file.imdb
+      media_path = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")["href"]
+      @logger.info "---- #{media_path}"
+      sub = @agent.get(media_path)
+        .css("#subtb > tbody > tr")
+        .sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }
+        .last
     else
+      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title)
+      media_path = @agent.get(search_path).
+        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])["href"]
+      @logger.info "---- #{media_path}"
+      subs = @agent.get(media_path).css("#subtb > tbody > tr")
       sub = subs.select{ |s|
         s.at_css(":has(a[title*='s%02de%02d']), :has(a[title*='S%02dE%02d'])" % [@file.season, @file.episode, @file.season, @file.episode]) 
       }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
@@ -116,7 +124,7 @@ class ZMKFinder
         e = nfo[/S\d{2}E\d{2}/i]
         next unless e
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        Dir["#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD].each do |f|
+        Dir.glob("#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
           _rename_sub(f, prefix)
         end
       end
