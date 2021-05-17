@@ -53,7 +53,7 @@ class ZMKFinder
       @file.imdb = show[:imdb]
       @file.year = season[:year]
       episode_str = "S%02dE%02d" % [@file.season, @file.episode]
-      @file.title = "#{show[:title]}:#{episode_str}.#{@file.title}" 
+      @file.title = "#{show[:title]}:#{episode_str}" 
       @file.show_title = show[:title]
       @file
     else
@@ -160,17 +160,13 @@ class ZMKFinder
 
   def _need_processing?
     return false unless @file and @file.imdb
-    @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
-    return true  if @force
     existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}.*.{srt,sub,ass}"]
-    if existing.empty?
-      return true  
+    unless existing.empty?
+      @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有 #{existing.size} 个字幕"
     else
-      existing.each do |f|
-        @logger.info "已有 #{File.basename(f)}"
-      end
-      return false
+      @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
     end
+    @force || existing.empty?
   end
 
   def _get_show_info(dir)
