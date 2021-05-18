@@ -253,9 +253,6 @@ if __FILE__ == $0
 
   dir = ARGV.first || "."
 
-  p opts
-  exit
-
   finder = ZMKFinder.new(opts)
 
   if opts[:daemon]
