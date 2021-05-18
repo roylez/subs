@@ -18,6 +18,7 @@ class ZMKFinder
     @agent = Mechanize.new
     @agent.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
     @force = opts[:force]
+    @short_names = opts[:short_names]
   end
 
   def process(nfo)
@@ -141,10 +142,17 @@ class ZMKFinder
   private
 
   def _rename_sub(f, prefix)
-    unless File.basename(f).start_with?(prefix)
-      old_name = File.basename(f)
-      new_name = prefix + "." + old_name
-      @logger.info "重命名 #{old_name}"
+    name = File.basename(f)
+    if @short_names
+      ext = File.extname(name)
+      lang = File.basename(name, '.*').split(/[.-]/).last
+      lang = lang =~ /(体|文|en|zh|cn)/i ? lang : ""
+      new_name = prefix + "." + lang + ext
+    else
+      new_name = prefix + "." + name
+    end
+    unless name == new_name
+      @logger.info "重命名 #{name}"
       @logger.info "  -> #{new_name}"
       File.rename(f, File.join(File.dirname(f), new_name))
     end
@@ -220,6 +228,9 @@ if __FILE__ == $0
 
     o.on("-f", "--force", "Force download subs even if there exists some") do |v|
       opts[:force] = v
+    end
+    o.on("-s", "--short", "Use short file names") do |v|
+      opts[:short_names] = v
     end
     o.on("-d", "--daemon", "Run as daemon") do |v|
       opts[:daemon] = v
