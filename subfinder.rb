@@ -146,8 +146,8 @@ class ZMKFinder
     if @short_names
       ext = File.extname(name)
       lang = File.basename(name, '.*').split(/[.-]/).last
-      lang = lang =~ /(体|文|en|zh|cn)/i ? lang : ""
-      new_name = prefix + "." + lang + ext
+      lang = lang =~ /(体|文|en|zh|cn|tw)/i ? ".#{lang}" : ""
+      new_name = prefix + lang + ext
     else
       new_name = prefix + "." + name
     end
