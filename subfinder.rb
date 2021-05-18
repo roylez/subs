@@ -215,9 +215,23 @@ def run_finder(finder, dir)
   log.info "....................一共运行 #{delta} 秒"
 end
 
+def get_env(var, type=:boolean)
+  res = ENV[var] && ENV[var]
+  case type
+  when :boolean; res && res != '0'
+  when :integer; res.to_i
+  else; res
+  end
+end
+
 if __FILE__ == $0
   require 'optparse'
-  opts = {}
+  opts = {
+    force:       get_env('SUBFINDER_FORCE'),
+    short_names: get_env('SUBFINDER_SHORT_NAMES')
+  }
+  sleep_interval = get_env('SUBFINDER_INTERVAL', :integer)
+  sleep_interval = sleep_interval > 0 ? sleep_interval : 7200
   OptionParser.new do |o|
     o.banner = <<~USAGE
     Usage: #{$0} [OPTIONS] [PATH]
@@ -239,6 +253,9 @@ if __FILE__ == $0
 
   dir = ARGV.first || "."
 
+  p opts
+  exit
+
   finder = ZMKFinder.new(opts)
 
   if opts[:daemon]
@@ -247,7 +264,7 @@ if __FILE__ == $0
 
     while run
       run_finder(finder, dir)
-      sleep 7200
+      sleep( sleep_interval )
     end
   else
     run_finder(finder, dir)

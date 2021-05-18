@@ -24,9 +24,19 @@
 
 docker镜像启动时会自动执行，然后每2小时执行一遍。数据需要挂载在`/data`。
 
+
 ```
   subfinder:
     image: roylez/subfinder
+    restart: always
     volumes:
       - /media:/data
+```
+
+### 环境变量
+
+```
+SUBFINDER_FORCE          # 强制下载，默认 0
+SUBFINDER_SHORT_NAMES    # 用短文件名格式，<nfo-prefix>.<lang>.{ass,srt,idx,sub}，默认 0
+SUBFINDER_INTERVAL       # 检查间隔，默认 7200 (2小时)
 ```
