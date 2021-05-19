@@ -66,22 +66,24 @@ class ZMKFinder
     @agent.get(_base_url)
     if @file.type == '电影'
       search_path = "/search/?q=" + @file.imdb
-      media_path = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")["href"]
-      @logger.info "---- #{media_path}"
+      media_item = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")
+    else
+      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
+      media_item = @agent.get(search_path).
+        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
+    end
+    unless media_item
+      @logger.info "未找到字幕"
+      return false 
+    end
+    media_path = media_item['href']
+    @logger.info "---- #{media_path}"
+    if @file.type == '电影'
       sub = @agent.get(media_path)
         .css("#subtb > tbody > tr")
         .sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }
         .last
     else
-      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
-      media_item = @agent.get(search_path).
-        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
-      unless media_item
-        @logger.info "未找到字幕"
-        return false 
-      end
-      media_path = media_item['href']
-      @logger.info "---- #{media_path}"
       subs = @agent.get(media_path).css("#subtb > tbody > tr")
       sub = subs.select{ |s|
         s.at_css(":has(a[title*='s%02de%02d']), :has(a[title*='S%02dE%02d'])" % [@file.season, @file.episode, @file.season, @file.episode]) 
