@@ -1,6 +1,6 @@
 FROM alpine:3.13
 
-RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext
+RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext ruby-json
 
 WORKDIR /app
 
