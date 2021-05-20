@@ -7,6 +7,7 @@ require 'nokogiri'
 require 'mechanize'
 require 'shellwords'
 require 'ostruct'
+require 'json'
 
 $stdout.sync = true
 
@@ -16,7 +17,6 @@ class Zimuku
     @agent = Mechanize.new
     @agent.user_agent_alias = "Mac Safari"
     @force = opts[:force]
-    @short_names = opts[:short_names]
   end
 
   def find(file)
@@ -54,8 +54,7 @@ class Zimuku
       @file.sub_name = sub.at_css("a[href^='/detail/']")["title"]
       @file.path = sub.at_css("a[href^='/detail/']")["href"].sub("detail", "dld")
       @file.downloads = sub.at_css(">td:nth-last-child(2)").text
-      @logger.info "找到 '#{@file.sub_name}'"
-      @logger.info "---- #{@file.path} 下载量 #{@file.downloads}"
+      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.downloads}"
       return true
     else
       @logger.info "未找到字幕"
@@ -70,7 +69,7 @@ class Zimuku
     fname = f.header['content-disposition'][/"(.*)"/,1]
     sub_file = File.join(@file.dir, fname)
     f.save!(sub_file)
-    fname
+    [ fname ]
   end
 
   private
@@ -85,22 +84,82 @@ class Zimuku
 
 end
 
+class SubHD
+  def initialize(opts)
+    @logger = Logger.new($stdout, progname: "SUBHD", datetime_format: "%Y-%m-%d %H:%M:%S")
+    @agent = Mechanize.new
+    @agent.user_agent_alias = "iPhone"
+    @force = opts[:force]
+  end
+
+  def find(file)
+    @file = file
+    @agent.get(_base_url)
+    if @file.type == '电影'
+      search_path = "/search/" + @file.imdb
+    else
+      search_path = "/search/" + @file.imdb + " " + "S%02d" % [@file.season]
+    end
+    media_item = @agent.get(search_path).at_css(".row.no-gutters a[href^='/d/']")
+    unless media_item
+      @logger.info "未找到字幕"
+      return false 
+    end
+    media_path = media_item['href']
+    @logger.info "---- #{media_path}"
+    if @file.type == '电影'
+      sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/'])")
+    else
+      sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/']):contains('.S%02dE%02d')" % [ @file.season, @file.episode ])
+    end
+    if sub
+      @file.sub_name = sub.at_css("a[href^='/a/']").text
+      @file.downloads = sub.at_css(">td:nth-last-child(2)").text.strip
+      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.downloads}"
+      @file.download_params = []
+      @agent.get(sub.at_css("a[href^='/a/']")["href"]).css("[data-sid]").each do |s|
+        @file.download_params << { dasid: s["data-sid"], dafname: s["data-fname"] }
+      end
+      return true
+    else
+      @logger.info "未找到字幕"
+      return false
+    end
+  end
+
+  def download
+    @file.download_params.map do |sub|
+      json = JSON.parse(@agent.post("/ajax/file_ajax", sub).body)
+      fname = File.basename(sub[:dafname])
+      sub_file = File.join(@file.dir, fname)
+      open(sub_file, 'w') { |f| f.write(json["filedata"]) } if json["success"]
+      fname
+    end
+  end
+
+  private
+
+  def _base_url
+    ENV['SUBHD_URL'] || "https://subhd.tv"
+  end
+end
+
 class SubFinder
 
   def initialize(opts)
     @logger = Logger.new($stdout, datetime_format: "%Y-%m-%d %H:%M:%S")
-    @providers = [ Zimuku.new(opts) ]
+    @providers = [ Zimuku.new(opts), SubHD.new(opts) ]
   end
 
   def process(nfo)
     read_nfo(nfo)
     return unless _need_processing?
-    sub_file = @providers.reduce(nil) do |file, sub|
+    sub_files = @providers.reduce(nil) do |file, sub|
       next unless sub.find(@file)
       break sub.download
     end
-    if sub_file
-      @file.sub_name = sub_file
+    if sub_files
+      @file.sub_files = sub_files
       extract
       rename
     end
@@ -139,11 +198,13 @@ class SubFinder
   end
 
   def extract
-    sub_file = File.join(@file.dir, @file.sub_name)
-    if sub_file.end_with?('.rar')
-      `unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)}`
-    elsif sub_file.end_with?('.zip')
-      `7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)}`
+    @file.sub_files.each do |f|
+      sub_file = File.join(@file.dir, f)
+      if sub_file.end_with?('.rar')
+        `unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)}`
+      elsif sub_file.end_with?('.zip')
+        `7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)}`
+      end
     end
   end
 
@@ -168,14 +229,10 @@ class SubFinder
 
   def _rename_sub(f, prefix)
     name = File.basename(f)
-    if @short_names
-      ext = File.extname(name)
-      lang = File.basename(name, '.*').split(/[.-]/).last
-      lang = lang =~ /(体|文|en|zh|cn|tw)/i ? ".#{lang}" : ""
-      new_name = prefix + lang + ext
-    else
-      new_name = prefix + "." + name
-    end
+    ext = File.extname(name)
+    lang = File.basename(name, '.*').split(/[.-]/).last
+    lang = lang =~ /(体|文|en|zh|cn|tw)/i ? ".#{lang}" : ""
+    new_name = prefix + lang + ext
     unless name == new_name
       @logger.info "重命名 #{name}"
       @logger.info "  -> #{new_name}"
@@ -244,8 +301,7 @@ end
 if __FILE__ == $0
   require 'optparse'
   opts = {
-    force:       get_env('SUBFINDER_FORCE'),
-    short_names: get_env('SUBFINDER_SHORT_NAMES').nil? ? true : get_env('SUBFINDER_SHORT_NAMES')
+    force: get_env('SUBFINDER_FORCE'),
   }
   sleep_interval = get_env('SUBFINDER_INTERVAL', :integer)
   sleep_interval = sleep_interval > 0 ? sleep_interval : 7200
@@ -259,9 +315,6 @@ if __FILE__ == $0
 
     o.on("-f", "--force", "Force download subs even if there exists some (default false)") do |v|
       opts[:force] = v
-    end
-    o.on("-s", "--[no-]short", "Use short file names (default true)") do |v|
-      opts[:short_names] = v
     end
     o.on("-d", "--daemon", "Run as daemon") do |v|
       opts[:daemon] = v
