@@ -231,7 +231,7 @@ class SubFinder
     name = File.basename(f)
     ext = File.extname(name)
     lang = File.basename(name, '.*').split(/[.-]/).last
-    lang = lang =~ /(体|文|en|zh|cn|tw)/i ? ".#{lang}" : ""
+    lang = lang =~ /(体|文|en|chs|cht|zh|cn|tw)/i ? ".#{lang}" : ""
     new_name = prefix + lang + ext
     unless name == new_name
       @logger.info "重命名 #{name}"
