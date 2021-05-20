@@ -246,7 +246,7 @@ class SubFinder
 
   def _need_processing?
     return false unless @file and @file.imdb
-    existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}.*.{srt,sub,ass}"]
+    existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}*.{srt,sub,ass}"]
     unless existing.empty?
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有 #{existing.size} 个字幕"
     else
