@@ -230,7 +230,7 @@ if __FILE__ == $0
   require 'optparse'
   opts = {
     force:       get_env('SUBFINDER_FORCE'),
-    short_names: get_env('SUBFINDER_SHORT_NAMES')
+    short_names: get_env('SUBFINDER_SHORT_NAMES').nil? ? true : get_env('SUBFINDER_SHORT_NAMES')
   }
   sleep_interval = get_env('SUBFINDER_INTERVAL', :integer)
   sleep_interval = sleep_interval > 0 ? sleep_interval : 7200
@@ -242,10 +242,10 @@ if __FILE__ == $0
 
     USAGE
 
-    o.on("-f", "--force", "Force download subs even if there exists some") do |v|
+    o.on("-f", "--force", "Force download subs even if there exists some (default false)") do |v|
       opts[:force] = v
     end
-    o.on("-s", "--short", "Use short file names") do |v|
+    o.on("-s", "--[no-]short", "Use short file names (default true)") do |v|
       opts[:short_names] = v
     end
     o.on("-d", "--daemon", "Run as daemon") do |v|
