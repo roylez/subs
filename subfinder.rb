@@ -10,59 +10,17 @@ require 'ostruct'
 
 $stdout.sync = true
 
-class ZMKFinder
-  @@base_url = "http://zmk.pw"
-
+class Zimuku
   def initialize(opts)
-    @logger = Logger.new($stdout, progname: "zimuku", datetime_format: "%Y-%m-%d %H:%M:%S")
+    @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
-    @agent.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36"
+    @agent.user_agent_alias = "Mac Safari"
     @force = opts[:force]
     @short_names = opts[:short_names]
   end
 
-  def process(nfo)
-    read_nfo(nfo)
-    return unless _need_processing?
-    return unless find
-    download
-    extract
-    rename
-  end
-
-  def read_nfo(nfo)
-    doc = File.open(nfo) { |f| Nokogiri::XML(f) }
-    if doc.at_css("movie:root")
-      @file = OpenStruct.new({
-        title: doc.at_css("movie > title").text,
-        imdb:  doc.at_css("uniqueid[type=imdb]").text,
-        filename: File.basename(nfo).delete_suffix(".nfo"),
-        dir: File.dirname(nfo),
-        type: "电影"
-      })
-    elsif doc.at_css("episodedetails:root")
-      @file = OpenStruct.new({
-        title: doc.at_css("episodedetails > title").text,
-        filename: File.basename(nfo).delete_suffix(".nfo"),
-        dir: File.dirname(nfo),
-        season: doc.at_css("episodedetails > season").text.to_i,
-        episode: doc.at_css("episodedetails > episode").text.to_i,
-        type: "剧集"
-      })
-      show = _get_show_info(File.expand_path("../", @file.dir))
-      season = _get_season_info(File.expand_path(@file.dir))
-      @file.imdb = show[:imdb]
-      @file.year = season[:year]
-      episode_str = "S%02dE%02d" % [@file.season, @file.episode]
-      @file.title = "#{show[:title]}:#{episode_str}" 
-      @file.show_title = show[:title]
-      @file
-    else
-      @file = nil
-    end
-  end
-
-  def find
+  def find(file)
+    @file = file
     @agent.get(_base_url)
     if @file.type == '电影'
       search_path = "/search/?q=" + @file.imdb
@@ -110,9 +68,74 @@ class ZMKFinder
     link = links.links.first.href
     f = @agent.get(link)
     fname = f.header['content-disposition'][/"(.*)"/,1]
-    @file.sub_name = fname
     sub_file = File.join(@file.dir, fname)
     f.save!(sub_file)
+    fname
+  end
+
+  private
+
+  def _download_count(c)
+    c.include?("万") ? (c.to_f * 10000).to_i : c.to_i
+  end
+
+  def _base_url
+    ENV['ZIMUKU_URL'] || "http://zmk.pw"
+  end
+
+end
+
+class SubFinder
+
+  def initialize(opts)
+    @logger = Logger.new($stdout, datetime_format: "%Y-%m-%d %H:%M:%S")
+    @providers = [ Zimuku.new(opts) ]
+  end
+
+  def process(nfo)
+    read_nfo(nfo)
+    return unless _need_processing?
+    sub_file = @providers.reduce(nil) do |file, sub|
+      next unless sub.find(@file)
+      break sub.download
+    end
+    if sub_file
+      @file.sub_name = sub_file
+      extract
+      rename
+    end
+  end
+
+  def read_nfo(nfo)
+    doc = File.open(nfo) { |f| Nokogiri::XML(f) }
+    if doc.at_css("movie:root")
+      @file = OpenStruct.new({
+        title: doc.at_css("movie > title").text,
+        imdb:  doc.at_css("uniqueid[type=imdb]").text,
+        filename: File.basename(nfo).delete_suffix(".nfo"),
+        dir: File.dirname(nfo),
+        type: "电影"
+      })
+    elsif doc.at_css("episodedetails:root")
+      @file = OpenStruct.new({
+        title: doc.at_css("episodedetails > title").text,
+        filename: File.basename(nfo).delete_suffix(".nfo"),
+        dir: File.dirname(nfo),
+        season: doc.at_css("episodedetails > season").text.to_i,
+        episode: doc.at_css("episodedetails > episode").text.to_i,
+        type: "剧集"
+      })
+      show = _get_show_info(File.expand_path("../", @file.dir))
+      season = _get_season_info(File.expand_path(@file.dir))
+      @file.imdb = show[:imdb]
+      @file.year = season[:year]
+      episode_str = "S%02dE%02d" % [@file.season, @file.episode]
+      @file.title = "#{show[:title]}:#{episode_str}" 
+      @file.show_title = show[:title]
+      @file
+    else
+      @file = nil
+    end
   end
 
   def extract
@@ -164,10 +187,6 @@ class ZMKFinder
     Shellwords.escape(str)
   end
 
-  def _download_count(c)
-    c.include?("万") ? (c.to_f * 10000).to_i : c.to_i
-  end
-
   def _need_processing?
     return false unless @file and @file.imdb
     existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}.*.{srt,sub,ass}"]
@@ -198,10 +217,6 @@ class ZMKFinder
     return {}
   end
 
-
-  def _base_url
-    @@base_url
-  end
 
 end
 
@@ -255,7 +270,7 @@ if __FILE__ == $0
 
   dir = ARGV.first || "."
 
-  finder = ZMKFinder.new(opts)
+  finder = SubFinder.new(opts)
 
   if opts[:daemon]
     run = true
