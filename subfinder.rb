@@ -132,7 +132,7 @@ class SubHD
       json = JSON.parse(@agent.post("/ajax/file_ajax", sub).body)
       fname = File.basename(sub[:dafname])
       sub_file = File.join(@file.dir, fname)
-      open(sub_file, 'w') { |f| f.write(json["filedata"]) } if json["success"]
+      open(sub_file, 'w') { |f| f.write(json["filedata"].gsub(/<br \/>/, '')) } if json["success"]
       fname
     end
   end
