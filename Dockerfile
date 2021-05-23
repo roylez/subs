@@ -6,8 +6,8 @@ WORKDIR /app
 
 COPY Gemfile ./
 RUN bundle install --jobs=3
-COPY subfinder.rb .
+COPY *.rb .
 
 VOLUME /data
 
-CMD ["bundle", "exec", "ruby", "./subfinder.rb", "-d", "/data"]
+CMD ["bundle", "exec", "ruby", "./sub.rb", "-d", "/data"]
