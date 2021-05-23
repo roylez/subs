@@ -1,9 +1,9 @@
-## Subfinder 简单中文字幕下载器
+## Subs 简单中文字幕下载器
 
 默认从字幕库下载，SubHD作为补充
 
 ```
-./subfinder.rb <目录>
+./subs.rb <目录>
 ```
 
 ### 使用须知
@@ -24,8 +24,8 @@ docker镜像启动时会自动执行，然后每2小时执行一遍。数据需�
 
 
 ```
-  subfinder:
-    image: roylez/subfinder
+  subs:
+    image: roylez/subs
     restart: always
     volumes:
       - /media:/data
@@ -34,8 +34,8 @@ docker镜像启动时会自动执行，然后每2小时执行一遍。数据需�
 ### 环境变量
 
 ```
-SUBFINDER_FORCE          # 强制下载，默认 0
-SUBFINDER_INTERVAL       # 检查间隔，默认 7200 (2小时)
-ZIMUKU_URL               # 字幕库URL，默认 http://zmk.pw
-SUBHD_URL                # SUBHD URL，默认 https://subhd.tv
+SUBS_FORCE    # 强制下载，默认  0
+SUBS_INTERVAL # 检查间隔，默认  7200      (2小时)
+ZIMUKU_URL    # 字幕库URL，默认 http://zmk.pw
+SUBHD_URL     # SUBHD           URL，默认 https://subhd.tv
 ```
