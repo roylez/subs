@@ -10,4 +10,4 @@ COPY *.rb .
 
 VOLUME /data
 
-CMD ["bundle", "exec", "ruby", "./sub.rb", "-d", "/data"]
+CMD ["bundle", "exec", "ruby", "./subs.rb", "-d", "/data"]
