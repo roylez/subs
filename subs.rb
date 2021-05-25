@@ -35,7 +35,7 @@ class Zimuku
       return false 
     end
     media_path = media_item['href']
-    @logger.info "---- #{media_path}"
+    @logger.info "---- #{_url(media_path)}"
     if @file.type == '电影'
       sub = @agent.get(media_path)
         .css("#subtb > tbody > tr")
@@ -82,6 +82,10 @@ class Zimuku
     ENV['ZIMUKU_URL'] || "http://zmk.pw"
   end
 
+  def _url(path)
+    URI.join(_base_url, path).to_s
+  end
+
 end
 
 class SubHD
@@ -106,7 +110,7 @@ class SubHD
       return false 
     end
     media_path = media_item['href']
-    @logger.info "---- #{media_path}"
+    @logger.info "---- #{_url(media_path)}"
     if @file.type == '电影'
       sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/'])")
     else
@@ -142,6 +146,11 @@ class SubHD
   def _base_url
     ENV['SUBHD_URL'] || "https://subhd.tv"
   end
+
+  def _url(path)
+    URI.join(_base_url, path).to_s
+  end
+
 end
 
 class Subs
@@ -327,11 +336,15 @@ if __FILE__ == $0
 
   if opts[:daemon]
     run = true
-    trap 'TERM', lambda { run = false }
+    begin
+      trap('TERM') { puts "中止执行"; exit }
 
-    while run
-      run_finder(finder, dir)
-      sleep( sleep_interval )
+      while run
+        run_finder(finder, dir)
+        sleep( sleep_interval )
+      end
+    rescue Interrupt => e
+      puts "用户取消"
     end
   else
     run_finder(finder, dir)
