@@ -179,7 +179,7 @@ class Subs
     if doc.at_css("movie:root")
       @file = OpenStruct.new({
         title: doc.at_css("movie > title").text,
-        imdb:  doc.at_css("uniqueid[type=imdb]").text,
+        imdb:  doc.at_css("uniqueid[type=imdb]")&.text,
         filename: File.basename(nfo).delete_suffix(".nfo"),
         dir: File.dirname(nfo),
         type: "电影"
@@ -254,7 +254,11 @@ class Subs
   end
 
   def _need_processing?
-    return false unless @file and @file.imdb
+    return false unless @file
+    unless @file.imdb
+      @logger.warn "#{@file.type} [#{@file.title}], imdb: 未知，略过"
+      return false
+    end
     existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}*.{srt,sub,ass}"]
     unless existing.empty?
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有 #{existing.size} 个字幕"
