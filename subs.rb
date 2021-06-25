@@ -93,7 +93,11 @@ end
 class SubHD
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "SUBHD", datetime_format: "%Y-%m-%d %H:%M:%S")
-    @agent = Mechanize.new
+    @agent = Mechanize.new do |a|
+      a.post_connect_hooks << ->(_,_,response,_) do
+        response.content_type = 'text/html' if response.content_type.empty?  
+      end
+    end
     @agent.user_agent_alias = "Mac Safari"
     @force = opts[:force]
   end
@@ -102,11 +106,11 @@ class SubHD
     @file = file
     @agent.get(_base_url)
     if @file.type == '电影'
-      search_path = "/search/" + @file.imdb
+      search_res = _search(@file.imdb)
     else
-      search_path = "/search/" + @file.imdb + " " + "S%02d" % [@file.season]
+      search_res = _search(@file.imdb + " " + "S%02d" % [@file.season])
     end
-    media_item = @agent.get(search_path).at_css(".row.no-gutters a[href^='/d/']")
+    media_item = search_res.at_css(".row.no-gutters a[href^='/d/']")
     unless media_item
       @logger.info "未找到字幕"
       return false 
@@ -147,6 +151,17 @@ class SubHD
 
   def _base_url
     ENV['SUBHD_URL'] || "https://subhd.tv"
+  end
+
+  def _search(str)
+    path = "/search/" + str
+    resp = nil
+    loop do
+      resp = @agent.get(path)
+      break if resp.class == Mechanize::Page
+      sleep 5
+    end
+    resp
   end
 
   def _url(path)
