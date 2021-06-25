@@ -16,21 +16,14 @@ class Zimuku
     @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
     @agent.user_agent_alias = "Mac Safari"
+    @season_item_cache = {}
     @force = opts[:force]
   end
 
   def find(file)
     @file = file
     @agent.get(_base_url)
-    if @file.type == '电影'
-      search_path = "/search/?q=" + @file.imdb
-      media_item = @agent.get(search_path).at_css(".container .box .item a[href^='/subs/']")
-    else
-      search_path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
-      media_item = @agent.get(search_path).
-        at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
-    end
-    unless media_item
+    unless media_item = _search_item()
       @logger.info "未找到字幕"
       return false 
     end
@@ -88,6 +81,23 @@ class Zimuku
     URI.join(_base_url, path).to_s
   end
 
+  def _search_item()
+    if @file.type == '电影'
+      path = "/search/?q=" + @file.imdb
+      item = @agent
+        .get(path)
+        .at_css(".container .box .item a[href^='/subs/']")
+    else
+      path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
+      return @season_item_cache[path] if @season_item_cache.key?(path)
+      item = @agent
+        .get(path)
+        .at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
+      @season_item_cache[path] = item
+    end
+    item
+  end
+
 end
 
 class SubHD
@@ -99,19 +109,14 @@ class SubHD
       end
     end
     @agent.user_agent_alias = "Mac Safari"
+    @season_item_cache = {}
     @force = opts[:force]
   end
 
   def find(file)
     @file = file
     @agent.get(_base_url)
-    if @file.type == '电影'
-      search_res = _search(@file.imdb)
-    else
-      search_res = _search(@file.imdb + " " + "S%02d" % [@file.season])
-    end
-    media_item = search_res.at_css(".row.no-gutters a[href^='/d/']")
-    unless media_item
+    unless media_item = _search_item()
       @logger.info "未找到字幕"
       return false 
     end
@@ -153,19 +158,26 @@ class SubHD
     ENV['SUBHD_URL'] || "https://subhd.tv"
   end
 
-  def _search(str)
-    path = "/search/" + str
+  def _url(path)
+    URI.join(_base_url, path).to_s
+  end
+
+  def _search_item()
+    path = "/search/" + @file.imdb
+    if @file.type == '剧集'
+      path += " S%02d" % [@file.season]
+      return @season_item_cache[path] if @season_item_cache.has_key?(path)
+    end
     resp = nil
+    # workaround rate limiting
     loop do
       resp = @agent.get(path)
       break if resp.class == Mechanize::Page
       sleep 5
     end
-    resp
-  end
-
-  def _url(path)
-    URI.join(_base_url, path).to_s
+    item = resp.at_css(".row.no-gutters a[href^='/d/']")
+    @season_item_cache[path] = item if @file.type == '剧集'
+    item
   end
 
 end
