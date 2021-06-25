@@ -94,7 +94,7 @@ class SubHD
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "SUBHD", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
-    @agent.user_agent_alias = "iPhone"
+    @agent.user_agent_alias = "Mac Safari"
     @force = opts[:force]
   end
 
