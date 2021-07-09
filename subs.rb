@@ -37,10 +37,10 @@ class Zimuku
     else
       subs = @agent.get(media_path).css("#subtb > tbody > tr")
       sub = subs.select{ |s|
-        s.at_css(":has(a[title*='s%02de%02d']), :has(a[title*='S%02dE%02d'])" % [@file.season, @file.episode, @file.season, @file.episode]) 
+        s.at_css(":has(a[title*='#{@file.episode_str}']), :has(a[title*='#{@file.episode_str.downcase}'])")
       }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
       sub ||= subs.select{ |s|
-        s.at_css(":has(a[title*='S%02d.']), :has(a[title*='s%02d.'])" % [@file.season, @file.season]) 
+        s.at_css(":has(a[title*='#{@file.season_str}.']), :has(a[title*='#{@file.season_str.downcase}.'])")
       }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
     end
     if sub 
@@ -92,7 +92,7 @@ class Zimuku
       return @season_item_cache[path] if @season_item_cache.key?(path)
       item = @agent
         .get(path)
-        .at_css(".container .box .item:contains('.S%02d') a[href^='/subs']" % [@file.season])
+        .at_css(".container .box .item:contains('.#{@file.season_str}') a[href^='/subs']")
       @season_item_cache[path] = item
     end
     item
@@ -125,7 +125,7 @@ class SubHD
     if @file.type == '电影'
       sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/'])")
     else
-      sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/']):contains('.S%02dE%02d')" % [ @file.season, @file.episode ])
+      sub = @agent.get(media_path).at_css("tr:has(a[href^='/a/']):contains('.#{@file.episode_str}')")
     end
     if sub
       @file.sub_name = sub.at_css("a[href^='/a/']").text
@@ -165,7 +165,7 @@ class SubHD
   def _search_item()
     path = "/search/" + @file.imdb
     if @file.type == '剧集'
-      path += " S%02d" % [@file.season]
+      path += " #{@file.season_str}"
       return @season_item_cache[path] if @season_item_cache.has_key?(path)
     end
     resp = nil
@@ -226,8 +226,9 @@ class Subs
       season = _get_season_info(File.expand_path(@file.dir))
       @file.imdb = show[:imdb]
       @file.year = season[:year]
-      episode_str = "S%02dE%02d" % [@file.season, @file.episode]
-      @file.title = "#{show[:title]}:#{episode_str}" 
+      @file.episode_str = "S%02dE%02d" % [@file.season, @file.episode]
+      @file.season_str = "S%02d" % [@file.season]
+      @file.title = "#{show[:title]}:#{@file.episode_str}" 
       @file.show_title = show[:title]
       @file
     else
@@ -252,11 +253,9 @@ class Subs
         _rename_sub(f, @file.filename)
       end
     else
-      Dir["#{_escape(@file.dir)}/*.nfo"].each do |nfo|
-        e = nfo[/S\d{2}E\d{2}/i]
-        next unless e
+      Dir["#{_escape(@file.dir)}/*{#{@file.episode_str},#{@file.episode_str.downcase}}*.nfo"].each do |nfo|
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        Dir.glob("#{_escape(@file.dir)}/*#{e}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
+        Dir.glob("#{_escape(@file.dir)}/*{#{@file.episode_str},#{@file.episode_str.downcase}}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
           _rename_sub(f, prefix)
         end
       end
@@ -275,6 +274,8 @@ class Subs
       @logger.info "重命名 #{name}"
       @logger.info "  -> #{new_name}"
       File.rename(f, File.join(File.dirname(f), new_name))
+    else
+      @logger.info "无需重命名 #{name}"
     end
   end
 
