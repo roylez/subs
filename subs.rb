@@ -59,9 +59,8 @@ class Zimuku
     links = @agent.get(@file.path)
     link = links.links.first.href
     f = @agent.get(link)
-    fname = f
-      .header['content-disposition'][/"(.*)"/,1]
-      .encode('utf-8', invalid: :replace, undef: :replace)
+    ext = File.extname(f.header['content-disposition'][/"(.*)"/,1])
+    fname = 'zmk-' + File.basename(@file.path, ".html") + ext
     sub_file = File.join(@file.dir, fname)
     f.save!(sub_file)
     [ fname ]
