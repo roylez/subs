@@ -253,9 +253,9 @@ class Subs
         _rename_sub(f, @file.filename)
       end
     else
-      Dir["#{_escape(@file.dir)}/*{#{@file.episode_str},#{@file.episode_str.downcase}}*.nfo"].each do |nfo|
+      Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.nfo", File::FNM_CASEFOLD).each do |nfo|
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        Dir.glob("#{_escape(@file.dir)}/*{#{@file.episode_str},#{@file.episode_str.downcase}}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
+        Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
           _rename_sub(f, prefix)
         end
       end
