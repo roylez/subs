@@ -241,7 +241,7 @@ class Subs
       if sub_file.end_with?('.rar')
         %[ unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)} ]
       elsif sub_file.end_with?('.zip')
-        %x[ 7z e -y -o#{_escape(@file.dir)} -ir\!\*.{ass,srt,sub,idx} #{_escape(sub_file)} ]
+        %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
       end
     end
   end
