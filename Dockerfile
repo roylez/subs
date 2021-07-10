@@ -1,6 +1,7 @@
 FROM alpine:3.13
+ENV TZ=Asia/Hong_Kong
 
-RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext ruby-json
+RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext ruby-json tzdata
 
 WORKDIR /app
 
