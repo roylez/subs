@@ -238,10 +238,13 @@ class Subs
   def extract
     @file.sub_files.each do |f|
       sub_file = File.join(@file.dir, f)
-      if sub_file.end_with?('.rar')
-        %[ unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)} ]
-      elsif sub_file.end_with?('.zip')
-        %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
+      case File.extname(sub_file)
+      when ".rar"  ; %x[ unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)} ]
+      when ".7z"   ; %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
+      when ".zip"  ; %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
+      when ".lzma" ; %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
+      else
+        @logger.info "未解压缩 #{sub_file}"
       end
     end
   end
