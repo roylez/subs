@@ -11,6 +11,8 @@ require 'json'
 
 $stdout.sync = true
 
+SUB_FORMATS=%w(ass ssa srt sub)
+
 class Zimuku
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
@@ -251,13 +253,13 @@ class Subs
 
   def rename
     if @file.type == '电影'
-      Dir["#{_escape(@file.dir)}/*.{sub,idx,ass,srt}"].each do |f|
+      _glob_subs("#{_escape(@file.dir)}/").each do |f|
         _rename_sub(f, @file.filename)
       end
     else
       Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.nfo", File::FNM_CASEFOLD).each do |nfo|
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.{sub,idx,ass,srt}", File::FNM_CASEFOLD).each do |f|
+        _glob_subs("#{_escape(@file.dir)}/*#{@file.episode_str}").each do |f|
           _rename_sub(f, prefix)
         end
       end
@@ -291,7 +293,7 @@ class Subs
       @logger.warn "#{@file.type} [#{@file.title}], imdb: 未知，略过"
       return false
     end
-    existing = Dir["#{_escape(@file.dir)}/#{_escape(@file.filename)}*.{srt,sub,ass}"]
+    existing = _glob_subs("#{_escape(@file.dir)}/#{_escape(@file.filename)}", false)
     unless existing.empty?
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有 #{existing.size} 个字幕"
     else
@@ -319,7 +321,10 @@ class Subs
     return {}
   end
 
-
+  def _glob_subs(path, include_idx = true)
+    formats = include_idx ? ( SUB_FORMATS + ["idx"] ) : SUB_FORMATS
+    Dir.glob("#{path}*.{#{formats.join(',')}}", File::FNM_CASEFOLD)
+  end
 end
 
 def run_finder(finder, dir)
