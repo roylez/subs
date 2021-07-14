@@ -272,7 +272,7 @@ class Subs
     name = File.basename(f)
     ext = File.extname(name)
     lang = File.basename(name, '.*').split(/[.-]/).last
-    lang = lang =~ /(体|文|en|chs|cht|zh|cn|tw)/i ? ".#{lang}" : ""
+    lang = lang =~ /(体|文|en|chs|cht|zh|cn|tw)/i ? ".#{lang}" : _fallback_lang(f)
     new_name = prefix + lang + ext
     unless name == new_name
       @logger.info "重命名 #{name}"
@@ -285,6 +285,11 @@ class Subs
 
   def _escape(str)
     Shellwords.escape(str)
+  end
+
+  def _fallback_lang(f)
+    content = open(f).read()
+    !!( content =~ /\p{Han}/ ) ? '.中文' : ''
   end
 
   def _need_processing?
