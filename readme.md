@@ -38,4 +38,5 @@ SUBS_FORCE    # 强制下载，默认 0
 SUBS_INTERVAL # 检查间隔，默认 7200 (2小时)
 ZIMUKU_URL    # 字幕库URL，默认 http://zmk.pw
 SUBHD_URL     # SUBHD URL，默认 https://subhd.tv
+TZ            # 时区，默认 Asia/Hong_Kong
 ```
