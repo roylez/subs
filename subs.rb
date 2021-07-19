@@ -5,6 +5,7 @@
 require 'logger'
 require 'nokogiri'
 require 'mechanize'
+require 'rchardet'
 require 'shellwords'
 require 'ostruct'
 require 'json'
@@ -289,7 +290,9 @@ class Subs
 
   def _fallback_lang(f)
     content = open(f).read()
-    !!( content =~ /\p{Han}/ ) ? '.中文' : ''
+    encoding = CharDet.detect(content)["encoding"]
+    c = encoding == 'utf-8' ? content : content.force_encoding(encoding).encode('utf-8')
+    !!( c =~ /\p{Han}/ ) ? '.中文' : ''
   end
 
   def _need_processing?
