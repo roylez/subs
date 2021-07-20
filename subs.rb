@@ -90,7 +90,9 @@ class Zimuku
         .get(path)
         .at_css(".container .box .item a[href^='/subs/']")
     else
-      path = "/search/?q=" + URI.encode_www_form_component(@file.show_title + " " + @file.year)
+      # some tv shows may have conflicting names so nfos may end up having '(YYYY)' as part of their
+      # names, and this should be removed before performing a search
+      path = "/search/?q=" + URI.encode_www_form_component(@file.show_title.sub(/\(\d{4}\)$/, '') + " " + @file.year)
       return @season_item_cache[path] if @season_item_cache.key?(path)
       item = @agent
         .get(path)
