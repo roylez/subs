@@ -32,24 +32,36 @@ class Zimuku
     end
     media_path = media_item['href']
     @logger.info "---- #{_url(media_path)}"
+    existing = _existing_archives(file.dir)
     if @file.type == '电影'
-      sub = @agent.get(media_path)
+      subs = @agent
+        .get(media_path)
         .css("#subtb > tbody > tr")
-        .sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }
-        .last
+        .sort_by {|s| -_download_count(s.at_css(">td:nth-last-child(2)").text) }
     else
-      subs = @agent.get(media_path).css("#subtb > tbody > tr")
-      sub = subs.select{ |s|
-        s.at_css(":has(a[title*='#{@file.episode_str}']), :has(a[title*='#{@file.episode_str.downcase}'])")
-      }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
-      sub ||= subs.select{ |s|
-        s.at_css(":has(a[title*='#{@file.season_str}.']), :has(a[title*='#{@file.season_str.downcase}.'])")
-      }.sort_by {|s| _download_count(s.at_css(">td:nth-last-child(2)").text) }.last
+      sub_list = @agent.get(media_path).css("#subtb > tbody > tr")
+      episode_subs = sub_list
+        .select{ |s| s.at_css(":has(a[title*='#{@file.episode_str}']), :has(a[title*='#{@file.episode_str.downcase}'])") }
+        .sort_by {|s| - _download_count(s.at_css(">td:nth-last-child(2)").text) }
+      season_subs = sub_list
+        .select{ |s| s.at_css(":has(a[title*='#{@file.season_str}.']), :has(a[title*='#{@file.season_str.downcase}.'])") }
+        .sort_by {|s| - _download_count(s.at_css(">td:nth-last-child(2)").text) }
+      subs = episode_subs + season_subs
     end
+    sub = subs
+      .map { |sub|
+        {
+          sub_name:       sub.at_css("a[href^='/detail/']")["title"],
+          path:           sub.at_css("a[href^='/detail/']")["href"].sub("detail", "dld"),
+          download_count: sub.at_css(">td:nth-last-child(2)").text
+        }
+      }.reject{ |sub|
+        existing.any? { |dld_id| sub[:path].include?(dld_id) } 
+      }.first
     if sub 
-      @file.sub_name = sub.at_css("a[href^='/detail/']")["title"]
-      @file.path = sub.at_css("a[href^='/detail/']")["href"].sub("detail", "dld")
-      @file.download_count = sub.at_css(">td:nth-last-child(2)").text
+      @file.sub_name = sub[:sub_name]
+      @file.path = sub[:path]
+      @file.download_count = sub[:download_count]
       @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.download_count}"
       return true
     else
@@ -70,6 +82,10 @@ class Zimuku
   end
 
   private
+
+  def _existing_archives(dir)
+    Dir["#{dir}/zmk-*.{7z,zip,lzma,rar}"].map{|i| i[/zmk-(\d+)\./, 1]}
+  end
 
   def _download_count(c)
     c.include?("万") ? (c.to_f * 10000).to_i : c.to_i
