@@ -49,8 +49,8 @@ class Zimuku
     if sub 
       @file.sub_name = sub.at_css("a[href^='/detail/']")["title"]
       @file.path = sub.at_css("a[href^='/detail/']")["href"].sub("detail", "dld")
-      @file.downloads = sub.at_css(">td:nth-last-child(2)").text
-      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.downloads}"
+      @file.download_count = sub.at_css(">td:nth-last-child(2)").text
+      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.download_count}"
       return true
     else
       @logger.info "未找到字幕"
@@ -133,8 +133,8 @@ class SubHD
     end
     if sub
       @file.sub_name = sub.at_css("a[href^='/a/']").text
-      @file.downloads = sub.at_css(">td:nth-last-child(2)").text.strip
-      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.downloads}"
+      @file.download_count = sub.at_css(">td:nth-last-child(2)").text.strip
+      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.download_count}"
       @file.download_params = []
       @agent.get(sub.at_css("a[href^='/a/']")["href"]).css("[data-sid]").each do |s|
         @file.download_params << { dasid: s["data-sid"], dafname: s["data-fname"] }
