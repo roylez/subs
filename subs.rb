@@ -206,6 +206,7 @@ class Subs
 
   def initialize(opts)
     @logger = Logger.new($stdout, datetime_format: "%Y-%m-%d %H:%M:%S")
+    @force = opts[:force]
     @providers = [ Zimuku.new(opts), SubHD.new(opts) ]
   end
 
