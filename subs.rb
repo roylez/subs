@@ -23,6 +23,7 @@ class Subs
   def initialize(opts)
     @logger = Logger.new($stdout, datetime_format: "%Y-%m-%d %H:%M:%S")
     @force = opts[:force]
+    @upgrade = opts[:upgrade]
     @providers = [ Zimuku.new(opts) ]
   end
 
@@ -30,7 +31,8 @@ class Subs
     read_nfo(nfo)
     return unless _need_processing?
     sub_files = @providers.reduce(nil) do |file, sub|
-      next unless sub.find(@file)
+      existings = @upgrade ? _get_existing_ids() : []
+      next unless sub.find(@file, existings)
       break sub.download
     end
     if sub_files
@@ -90,13 +92,13 @@ class Subs
   def rename
     if @file.type == '电影'
       _glob_subs("#{_escape(@file.dir)}/").each do |f|
-        _rename_sub(f, @file.filename)
+        _rename_sub(f, @file.filename, @file.id)
       end
     else
       Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.nfo", File::FNM_CASEFOLD).each do |nfo|
         prefix = File.basename(nfo).delete_suffix(".nfo")
         _glob_subs("#{_escape(@file.dir)}/*#{@file.episode_str}").each do |f|
-          _rename_sub(f, prefix)
+          _rename_sub(f, prefix, @file.id)
         end
       end
     end
@@ -104,13 +106,12 @@ class Subs
 
   private
 
-  def _rename_sub(f, prefix)
+  def _rename_sub(f, prefix, id)
     name = File.basename(f)
     ext = File.extname(name)
-    lang = File.basename(name, '.*').split(/[.-]/).last
-    lang = lang =~ /(体|文|en|chs|cht|zh|cn|tw)/i ? ".#{lang}" : _fallback_lang(f)
-    new_name = prefix + lang + ext
-    unless name == new_name
+    lang = name =~ /[.-]([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-]/i ? ".#{$1}" : _fallback_lang(f)
+    new_name = prefix + lang + "-" + id + ext
+    unless name =~ /^#{prefix}.([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-].*/
       @logger.info "重命名 #{name}"
       @logger.info "  -> #{new_name}"
       File.rename(f, File.join(File.dirname(f), new_name))
@@ -127,7 +128,7 @@ class Subs
     content = open(f).read()
     encoding = CharDet.detect(content)["encoding"]
     c = encoding == 'utf-8' ? content : content.force_encoding(encoding).encode('utf-8')
-    !!( c =~ /\p{Han}/ ) ? '.中文' : ''
+    !!( c =~ /\p{Han}/ ) ? '.中文' : 'en'
   end
 
   def _need_processing?
@@ -142,7 +143,7 @@ class Subs
     else
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
     end
-    @force || existing.empty?
+    @force || existing.empty? || @upgrade
   end
 
   def _get_show_info(dir)
@@ -167,6 +168,13 @@ class Subs
   def _glob_subs(path, include_idx = true)
     formats = include_idx ? ( SUB_FORMATS + ["idx"] ) : SUB_FORMATS
     Dir.glob("#{path}*.{#{formats.join(',')}}", File::FNM_CASEFOLD)
+  end
+
+  def _get_existing_ids()
+    _glob_subs("#{_escape(@file.dir)}/#{_escape(@file.filename)}", false)
+      .collect{|s| s[/-([a-z]{3}-\d+)/, 1] }
+      .uniq
+      .compact
   end
 end
 
@@ -195,6 +203,7 @@ if __FILE__ == $0
   require 'optparse'
   opts = {
     force: get_env('SUBS_FORCE'),
+    upgrade: !get_env('SUBS_NO_UPGRADE')
   }
   sleep_interval = get_env('SUBS_INTERVAL', :integer)
   sleep_interval = sleep_interval > 0 ? sleep_interval : 7200
@@ -208,6 +217,9 @@ if __FILE__ == $0
 
     o.on("-f", "--force", "Force download subs even if there exists some (default false)") do |v|
       opts[:force] = v
+    end
+    o.on("--[no-]upgrade", "Download sub upgrades (default true)") do |v|
+      opts[:upgrade] = v
     end
     o.on("-d", "--daemon", "Run as daemon") do |v|
       opts[:daemon] = v

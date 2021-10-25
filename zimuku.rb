@@ -7,7 +7,7 @@ class Zimuku
     @force = opts[:force]
   end
 
-  def find(file)
+  def find(file, existing_ids=[])
     @file = file
     @agent.get(_base_url)
     unless media_item = _search_item()
@@ -43,13 +43,19 @@ class Zimuku
         existing.any? { |dld_id| sub[:path].include?(dld_id) } 
       }.first
     if sub 
-      @file.sub_name = sub[:sub_name]
       @file.path = sub[:path]
+      @file.id = "zmk-" + @file.path[/\/dld\/(\d+).*/, 1]
+      @file.sub_name = sub[:sub_name]
       @file.download_count = sub[:download_count]
-      @logger.info "找到 '#{@file.sub_name}', 下载量 #{@file.download_count}"
-      return true
+      if existing_ids.include?(@file.id)
+        @logger.info "已有「#{@file.sub_name}」, 下载量 #{@file.download_count}"
+        return false
+      else
+        @logger.info "找到「#{@file.sub_name}」, 下载量 #{@file.download_count}"
+        return true
+      end
     else
-      @logger.info "未找到字幕"
+      @logger.info "未找到新字幕"
       return false
     end
   end
