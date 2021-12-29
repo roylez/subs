@@ -120,7 +120,7 @@ class Subs
       when ".7z"   ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
       when ".zip"  ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
       when ".lzma" ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
-      else; [f]
+      else; f
       end
         .lines(chomp: true)
         .map{|s| File.basename(s)}
