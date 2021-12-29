@@ -3,6 +3,7 @@ class Zimuku
     @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
     @agent.user_agent_alias = "Mac Safari"
+    @agent.max_history = 1
     @season_item_cache = {}
     @force = opts[:force]
   end
