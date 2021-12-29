@@ -91,20 +91,41 @@ class Subs
 
   def rename
     if @file.type == '电影'
-      _glob_subs("#{_escape(@file.dir)}/").each do |f|
-        _rename_sub(f, @file.filename, @file.id)
+      _extracted_subfiles.each do |f|
+        _rename_sub(File.join(@file.dir, f), @file.filename, @file.id)
       end
     else
-      Dir.glob("#{_escape(@file.dir)}/*#{@file.episode_str}*.nfo", File::FNM_CASEFOLD).each do |nfo|
+      Dir.glob("#{_escape(@file.dir)}/*.nfo", File::FNM_CASEFOLD).each do |nfo|
         prefix = File.basename(nfo).delete_suffix(".nfo")
-        _glob_subs("#{_escape(@file.dir)}/*#{@file.episode_str}").each do |f|
-          _rename_sub(f, prefix, @file.id)
-        end
+        episode_str = prefix[/s\d{2}e\d{2}/i]
+        next unless episode_str
+        _extracted_subfiles
+          .select{ |f| f =~ /#{episode_str}/i }
+          .each{ |f|
+            _rename_sub(File.join(@file.dir, f), prefix, @file.id)
+          }
       end
     end
   end
 
   private
+
+  def _extracted_subfiles
+    awk_filter_7z = %Q[ awk 'BEGIN {IGNORECASE=1} /^Path = / && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
+    awk_filter_rar = %Q[ awk 'BEGIN {IGNORECASE=1} $1 == "Name:" && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
+    @file.sub_files.collect do |f|
+      sub_file = File.join(@file.dir, f)
+      case File.extname(sub_file)
+      when ".rar"  ; %x[ unrar lt #{_escape(sub_file)} | #{awk_filter_rar} ]
+      when ".7z"   ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
+      when ".zip"  ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
+      when ".lzma" ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
+      else; [f]
+      end
+        .lines(chomp: true)
+        .map{|s| File.basename(s)}
+    end.flatten
+  end
 
   def _rename_sub(f, prefix, id)
     name = File.basename(f)
