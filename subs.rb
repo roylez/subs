@@ -78,7 +78,7 @@ class Subs
   def extract
     @file.sub_files.each do |f|
       sub_file = File.join(@file.dir, f)
-      case File.extname(sub_file)
+      case File.extname(sub_file).downcase
       when ".rar"  ; %x[ unrar e -o+ #{_escape(sub_file)} #{_escape(@file.dir)} ]
       when ".7z"   ; %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
       when ".zip"  ; %x[ 7z e -y -o#{_escape(@file.dir)} #{_escape(sub_file)} ]
@@ -115,7 +115,7 @@ class Subs
     awk_filter_rar = %Q[ awk 'BEGIN {IGNORECASE=1} $1 == "Name:" && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
     @file.sub_files.collect do |f|
       sub_file = File.join(@file.dir, f)
-      case File.extname(sub_file)
+      case File.extname(sub_file).downcase
       when ".rar"  ; %x[ unrar lt #{_escape(sub_file)} | #{awk_filter_rar} ]
       when ".7z"   ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
       when ".zip"  ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
