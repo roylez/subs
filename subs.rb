@@ -90,8 +90,9 @@ class Subs
   end
 
   def rename
-    if @file.type == '电影'
-      _extracted_subfiles.each do |f|
+    extracted = _extracted_subfiles()
+    if @file.type == '电影' or extracted.length == 1
+      extracted.each do |f|
         _rename_sub(File.join(@file.dir, f), @file.filename, @file.id)
       end
     else
@@ -99,7 +100,7 @@ class Subs
         prefix = File.basename(nfo).delete_suffix(".nfo")
         episode_str = prefix[/s\d{2}e\d{2}/i]
         next unless episode_str
-        _extracted_subfiles
+        extracted
           .select{ |f| f =~ /#{episode_str}/i }
           .each{ |f|
             _rename_sub(File.join(@file.dir, f), prefix, @file.id)
@@ -111,20 +112,27 @@ class Subs
   private
 
   def _extracted_subfiles
-    awk_filter_7z = %Q[ awk 'BEGIN {IGNORECASE=1} /^Path = / && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
-    awk_filter_rar = %Q[ awk 'BEGIN {IGNORECASE=1} $1 == "Name:" && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
+    awk_filter_rar = %Q[]
     @file.sub_files.collect do |f|
       sub_file = File.join(@file.dir, f)
       case File.extname(sub_file).downcase
-      when ".rar"  ; %x[ unrar lt #{_escape(sub_file)} | #{awk_filter_rar} ]
-      when ".7z"   ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
-      when ".zip"  ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
-      when ".lzma" ; %x[ 7z l -slt #{_escape(sub_file)} | #{awk_filter_7z} ]
+      when ".rar"  ; _rar_list_archive(sub_file)
+      when ".7z"   ; _7z_list_archive(sub_file)
+      when ".zip"  ; _7z_list_archive(sub_file)
+      when ".lzma" ; _7z_list_archive(sub_file)
       else; f
       end
         .lines(chomp: true)
         .map{|s| File.basename(s)}
     end.flatten
+  end
+
+  def _7z_list_archive(sub_file)
+    %x[ 7z l -slt #{_escape(sub_file)} | awk 'BEGIN {IGNORECASE=1} /^Path = / && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
+  end
+
+  def _rar_list_archive(sub_file)
+    %x[ unrar lt #{_escape(sub_file)} | awk 'BEGIN {IGNORECASE=1} $1 == "Name:" && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
   end
 
   def _rename_sub(f, prefix, id)
