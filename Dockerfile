@@ -6,7 +6,7 @@ RUN apk add --no-cache unrar p7zip ruby ruby-nokogiri ruby-bundler ruby-unf_ext 
 WORKDIR /app
 
 COPY Gemfile ./
-RUN bundle install --jobs=3
+RUN bundle install --jobs=3 --no-cache
 COPY *.rb ./
 
 VOLUME /data
