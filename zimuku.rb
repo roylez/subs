@@ -1,4 +1,6 @@
 class Zimuku
+  attr_accessor :enabled
+
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
@@ -6,11 +8,18 @@ class Zimuku
     @agent.max_history = 1
     @season_item_cache = {}
     @force = opts[:force]
+    @enabled = true
   end
 
   def find(file, existing_ids=[])
     @file = file
-    @agent.get(_base_url)
+    begin
+      @agent.get(_base_url)
+    rescue Mechanize::ResponseCodeError => e
+      @logger.warn "无法连接，暂时禁用：#{e.response_code}"
+      @enabled = false
+      return false
+    end
     unless media_item = _search_item()
       @logger.info "未找到字幕"
       return false 

@@ -27,12 +27,17 @@ class Subs
     @providers = [ Zimuku.new(opts) ]
   end
 
+  def enable_all_providers
+    @providers.each{|sub| sub.enabled = true}
+  end
+
   def process(nfo)
     read_nfo(nfo)
     return unless _need_processing?
     sub_files = @providers.reduce(nil) do |file, sub|
       existings = @upgrade ? _get_existing_ids() : []
-      next unless sub.find(@file, existings)
+      next unless sub.enabled
+      next unless sub.find(@file, existings) 
       break sub.download
     end
     if sub_files
@@ -211,6 +216,8 @@ def run_finder(finder, dir)
   log = Logger.new(STDOUT, datetime_format: "%Y-%m-%d %H:%M:%S")
   log.info "....................启动 SUBS"
   t = Time.now()
+
+  finder.enable_all_providers
 
   Dir["#{dir}/**/*.nfo"].sort.each do |nfo|
     finder.process(nfo)
