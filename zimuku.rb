@@ -4,7 +4,7 @@ class Zimuku
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "字幕库", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new
-    @agent.user_agent_alias = "Mac Safari"
+    @agent.user_agent_alias = "Windows Edge"
     @agent.max_history = 1
     @season_item_cache = {}
     @force = opts[:force]
@@ -14,8 +14,9 @@ class Zimuku
   def find(file, existing_ids=[])
     @file = file
     begin
-      @agent.get(_base_url)
+      @agent.get(_base_url, [ ["security_verify_data", "313932302c31323830"] ])
     rescue Mechanize::ResponseCodeError => e
+      retry if e.response_code == "404" 
       @logger.warn "无法连接，暂时禁用：#{e.response_code}"
       @enabled = false
       return false
