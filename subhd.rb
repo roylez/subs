@@ -1,4 +1,6 @@
 class SubHD
+  attr_accessor :enabled
+
   def initialize(opts)
     @logger = Logger.new($stdout, progname: "SUBHD", datetime_format: "%Y-%m-%d %H:%M:%S")
     @agent = Mechanize.new do |a|
@@ -9,9 +11,10 @@ class SubHD
     @agent.user_agent_alias = "Mac Safari"
     @season_item_cache = {}
     @force = opts[:force]
+    @enabled = true
   end
 
-  def find(file)
+  def find(file, existings)
     @file = file
     @agent.get(_base_url)
     unless media_item = _search_item()
