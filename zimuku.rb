@@ -11,7 +11,7 @@ class Zimuku
     @enabled = true
   end
 
-  def find(file, existing_ids=[])
+  def find(file, existing_ids)
     @file = file
     begin
       @agent.get(_base_url, [ ["security_verify_data", "313932302c31323830"] ])
@@ -27,7 +27,7 @@ class Zimuku
     end
     media_path = media_item['href']
     @logger.info "---- #{_url(media_path)}"
-    existing = _existing_archives(file.dir)
+    existing = existing_ids.reject{ |i| i !~ /^zmk-/ }.map{ |i| i.split("-").last }
     if @file.type == '电影'
       subs = @agent
         .get(media_path)
@@ -83,10 +83,6 @@ class Zimuku
   end
 
   private
-
-  def _existing_archives(dir)
-    Dir["#{dir}/zmk-*.{7z,zip,lzma,rar}"].map{|i| i[/zmk-(\d+)\./, 1]}
-  end
 
   def _download_count(c)
     c.include?("万") ? (c.to_f * 10000).to_i : c.to_i

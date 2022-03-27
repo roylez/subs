@@ -33,9 +33,10 @@ class Subs
 
   def process(nfo)
     read_nfo(nfo)
-    return unless _need_processing?
+    return unless @file
+    existings = _get_existing_ids()
+    return unless _need_processing?(existings)
     sub_files = @providers.reduce(nil) do |file, sub|
-      existings = @upgrade ? _get_existing_ids() : []
       next unless sub.enabled
       next unless sub.find(@file, existings) 
       break sub.download
@@ -165,19 +166,19 @@ class Subs
     !!( c =~ /\p{Han}/ ) ? '.中文' : 'en'
   end
 
-  def _need_processing?
-    return false unless @file
+  def _need_processing?(existings)
     unless @file.imdb
       @logger.warn "#{@file.type} [#{@file.title}], imdb: 未知，略过"
       return false
     end
-    existing = _glob_subs("#{_escape(@file.dir)}/#{_escape(@file.filename)}", false)
-    unless existing.empty?
-      @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有 #{existing.size} 个字幕"
+    unless existings.empty?
+      @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}, 已有来自 #{existings.size} 个来源的字幕"
     else
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
     end
-    @force || existing.empty? || @upgrade
+    return true if @force or ( existings.size < 2 )
+    return true if @upgrade and ( existings.size < 3 )
+    false
   end
 
   def _get_show_info(dir)
