@@ -31,6 +31,10 @@ class Subs
     @providers.each{|sub| sub.enabled = true}
   end
 
+  def has_enabled_providers?
+    @providers.any?{|sub| sub.enabled}
+  end
+
   def process(nfo)
     read_nfo(nfo)
     return unless @file
@@ -222,6 +226,10 @@ def run_finder(finder, dir)
 
   Dir["#{dir}/**/*.nfo"].sort.each do |nfo|
     finder.process(nfo)
+    unless finder.has_enabled_providers?
+      log.warn "....................已经没有可用的字幕来源，略过本次执行"
+      break
+    end
   end
   delta = (Time.now() - t).round(2)
   log.info "....................一共运行 #{delta} 秒"
