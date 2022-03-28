@@ -149,7 +149,7 @@ class Subs
     name = File.basename(f)
     ext = File.extname(name)
     lang = name =~ /[.-]([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-]/i ? ".#{$1}" : _fallback_lang(f)
-    new_name = prefix + lang + "-" + id + ext
+    new_name = prefix + "." + lang + "-" + id + ext
     unless name =~ /^#{prefix}.([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-].*/
       @logger.info "重命名 #{name}"
       @logger.info "  -> #{new_name}"
@@ -166,8 +166,9 @@ class Subs
   def _fallback_lang(f)
     content = open(f).read()
     encoding = CharDet.detect(content)["encoding"]
+    return "中文" unless encoding
     c = encoding == 'utf-8' ? content : content.force_encoding(encoding).encode('utf-8')
-    !!( c =~ /\p{Han}/ ) ? '.中文' : 'en'
+    !!( c =~ /\p{Han}/ ) ? '中文' : 'en'
   end
 
   def _need_processing?(existings)
