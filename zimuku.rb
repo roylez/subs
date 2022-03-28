@@ -89,7 +89,7 @@ class Zimuku
   end
 
   def _base_url
-    ENV['ZIMUKU_URL'] || "http://zmk.pw"
+    ENV['ZIMUKU_URL'] || "https://zimuku.org"
   end
 
   def _url(path)
