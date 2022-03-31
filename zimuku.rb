@@ -75,6 +75,11 @@ class Zimuku
     links = @agent.get(@file.path)
     link = links.links.first.href
     f = @agent.get(link)
+    if f.header['server'] == 'Firewall' or a.header["content-type"] == "text/html; charset=utf-8"
+      @enabled = false
+      @logger.warn "下载超限，暂时禁用"
+      return []
+    end
     ext = File.extname(f.header['content-disposition'][/"(.*)"/,1])
     fname = 'zmk-' + File.basename(@file.path, ".html") + ext
     sub_file = File.join(@file.dir, fname)
