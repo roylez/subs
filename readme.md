@@ -36,7 +36,6 @@ docker镜像启动时会自动执行，然后每2小时执行一遍。数据需�
 ```
 SUBS_FORCE      # 强制下载，默认 0
 SUBS_INTERVAL   # 检查间隔，默认 7200 (2小时)
-SUBS_NO_UPGRADE # 禁用字幕升级
 ZIMUKU_URL      # 字幕库URL，默认 https://zimuku.org
 SUBHD_URL       # SUBHD URL，默认 https://subhd.tv
 TZ              # 时区，默认 Asia/Hong_Kong

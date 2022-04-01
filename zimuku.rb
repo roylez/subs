@@ -75,7 +75,7 @@ class Zimuku
     links = @agent.get(@file.path)
     link = links.links.first.href
     f = @agent.get(link)
-    if f.header['server'] == 'Firewall' or a.header["content-type"] == "text/html; charset=utf-8"
+    if f.header['server'] == 'Firewall' or f.header["content-type"] == "text/html; charset=utf-8"
       @enabled = false
       @logger.warn "下载超限，暂时禁用"
       return []

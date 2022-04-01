@@ -23,7 +23,6 @@ class Subs
   def initialize(opts)
     @logger = Logger.new($stdout, datetime_format: "%Y-%m-%d %H:%M:%S")
     @force = opts[:force]
-    @upgrade = opts[:upgrade]
     @providers = [ Zimuku.new(opts) ]
   end
 
@@ -182,7 +181,6 @@ class Subs
       @logger.info "#{@file.type} [#{@file.title}], imdb: #{@file.imdb}"
     end
     return true if @force or ( existings.size < 2 )
-    return true if @upgrade and ( existings.size < 3 )
     false
   end
 
@@ -249,7 +247,6 @@ if __FILE__ == $0
   require 'optparse'
   opts = {
     force: get_env('SUBS_FORCE'),
-    upgrade: !get_env('SUBS_NO_UPGRADE')
   }
   sleep_interval = get_env('SUBS_INTERVAL', :integer)
   sleep_interval = sleep_interval > 0 ? sleep_interval : 7200
@@ -263,9 +260,6 @@ if __FILE__ == $0
 
     o.on("-f", "--force", "Force download subs even if there exists some (default false)") do |v|
       opts[:force] = v
-    end
-    o.on("--[no-]upgrade", "Download sub upgrades (default true)") do |v|
-      opts[:upgrade] = v
     end
     o.on("-d", "--daemon", "Run as daemon") do |v|
       opts[:daemon] = v
