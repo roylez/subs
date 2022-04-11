@@ -205,7 +205,7 @@ class Subs
 
   def _glob_subs(path, include_idx = true)
     formats = include_idx ? ( SUB_FORMATS + ["idx"] ) : SUB_FORMATS
-    Dir.glob("#{path}*.{#{formats.join(',')}}", File::FNM_CASEFOLD)
+    Dir.glob("#{path}*.{#{(formats + formats.map(&:upcase)).join(',')}}")
   end
 
   def _get_existing_ids()
