@@ -137,7 +137,7 @@ class Subs
   end
 
   def _7z_list_archive(sub_file)
-    %x[ 7z l -slt #{_escape(sub_file)} | awk 'BEGIN {IGNORECASE=1} /^Path = / && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {print $NF}' ]
+    %x[ 7z l -slt #{_escape(sub_file)} | awk 'BEGIN {IGNORECASE=1} /^Path = / && $NF ~ /(#{SUB_FORMATS.join("|")})$/ {sub(/^Path = /, ""); print}' ]
   end
 
   def _rar_list_archive(sub_file)
@@ -147,7 +147,7 @@ class Subs
   def _rename_sub(f, prefix, id)
     name = File.basename(f)
     ext = File.extname(name)
-    lang = name =~ /[.-]([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-]/i ? ".#{$1}" : _fallback_lang(f)
+    lang = name =~ /[.-]([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-]/i ? $1 : _fallback_lang(f)
     new_name = prefix + "." + lang + "-" + id + ext
     unless name =~ /^#{prefix}.([^.-]?体|[^.-]?文|en|chs|cht|zh|cn|tw)[.-].*/
       @logger.info "重命名 #{name}"
